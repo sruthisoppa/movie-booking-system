@@ -146,14 +146,14 @@ export default function SeatSelectionPage() {
 
       sessionStorage.setItem('lastBooking', JSON.stringify(bookingData));
       router.push(`/booking/${finalBookingId}`);
-    } catch (error: unknown) {
-      console.error('Booking error:', error);
+    } catch (err: unknown) {
+      console.error('Booking error:', err);
       let errorMessage = 'Failed to create booking. Please try again.';
+      const axiosErr = err as AxiosError | undefined;
 
-      if ((error as AxiosError).response) {
-        const axiosErr = error as AxiosError;
-        switch (axiosErr.response?.status) {
-          case 401:
+      if (axiosErr && axiosErr.response) {
+        switch (axiosErr.response.status) {
+          case 401: {
             errorMessage = 'Your session has expired. Please login again.';
             localStorage.removeItem('token');
             localStorage.removeItem('user');
@@ -168,25 +168,27 @@ export default function SeatSelectionPage() {
             );
             router.push(`/login?redirect=/show/${showId}/seats`);
             return;
-
-            case 400:
-            errorMessage =
-              (axiosErr.response?.data as any)?.message ||
-              'Invalid booking data. Please check your selection.';
+          }
+          case 400: {
+            const data = axiosErr.response.data as unknown;
+            const message = typeof data === 'object' && data !== null && 'message' in (data as Record<string, unknown>)
+              ? String((data as Record<string, unknown>)['message'])
+              : undefined;
+            errorMessage = message || 'Invalid booking data. Please check your selection.';
             break;
-
-          case 409:
-            errorMessage =
-              'Some selected seats are no longer available. Please select different seats.';
+          }
+          case 409: {
+            errorMessage = 'Some selected seats are no longer available. Please select different seats.';
             loadData();
             setSelectedSeats([]);
             break;
-
-          case 500:
+          }
+          case 500: {
             errorMessage = 'Server error. Please try again later.';
             break;
+          }
         }
-      } else if ((error as AxiosError).request) {
+      } else if (axiosErr && axiosErr.request) {
         errorMessage = 'Network error. Please check your connection.';
       }
 

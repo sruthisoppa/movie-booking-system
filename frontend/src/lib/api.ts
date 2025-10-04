@@ -84,7 +84,7 @@ export const seatAPI = {
 //};
 
 export const userAPI = {
-  create: (data: any) => api.post('/users', data),
+  create: (data: { name: string; email: string; password: string }) => api.post('/users', data),
   getDemoUser: () => api.get('/users/demo'),
 };
 // frontend/src/lib/api.ts

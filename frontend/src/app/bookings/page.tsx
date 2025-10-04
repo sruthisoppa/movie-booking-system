@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { bookingAPI, type Booking } from '@/lib/api';
 import { ChevronLeft, Ticket, Calendar, Clock, MapPin } from 'lucide-react';
@@ -16,73 +16,83 @@ export default function MyBookingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const loadBookings = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Check if user is authenticated
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Please login to view your bookings');
+        router.push('/login?redirect=/bookings');
+        return;
+      }
+
+      const response = await bookingAPI.getUserBookings();
+      
+      // Handle different possible response formats
+      let bookingsData: unknown[] = [];
+      if (Array.isArray(response.data)) {
+        bookingsData = response.data;
+      } else if (response.data && typeof response.data === 'object') {
+        const data = response.data as Record<string, unknown>;
+        if (Array.isArray(data.bookings)) {
+          bookingsData = data.bookings as unknown[];
+        } else if (Array.isArray(data.data)) {
+          bookingsData = data.data as unknown[];
+        }
+      }
+      
+      console.log('Bookings data:', bookingsData);
+
+      const formattedBookings = bookingsData.map((b) => {
+        const booking = b as Record<string, unknown>;
+        const rawId = booking['id'] ?? booking['_id'];
+        const id = rawId as string | number | undefined;
+        const bookingId = (booking['bookingId'] as string | number | undefined) || (id ? `BK${String(id).padStart(3, '0')}` : undefined);
+        const showId = (booking['show_id'] as number | undefined) || (booking['showId'] as number | undefined) || 0;
+        const seatsField = booking['seats'];
+        const seatNumbers = seatsField ? String(seatsField).split(',') : ((booking['seatNumbers'] as string[] | undefined) ?? []);
+        const totalAmount = (booking['total_amount'] as number | undefined) ?? (booking['totalAmount'] as number | undefined) ?? 0;
+        const status = (booking['status'] as BookingWithDetails['status']) ?? 'pending';
+        return {
+          id,
+          bookingId,
+          showId,
+          seatNumbers,
+          totalAmount,
+          status,
+          movie_title: booking['movie_title'] as string | undefined,
+          cinema_name: booking['cinema_name'] as string | undefined,
+          start_time: booking['start_time'] as string | undefined,
+          poster_url: booking['poster_url'] as string | undefined,
+          end_time: booking['end_time'] as string | undefined,
+          booking_time: booking['booking_time'] as string | undefined,
+        } as BookingWithDetails;
+      });
+
+      setBookings(formattedBookings);
+    } catch (err: unknown) {
+      console.error('Error loading bookings:', err);
+      const axiosErr = err as import('axios').AxiosError;
+      if (axiosErr?.response?.status === 401) {
+        setError('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        router.push('/login?redirect=/bookings');
+      } else {
+        setError('Failed to load your bookings');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
+
   useEffect(() => {
     loadBookings();
-  }, []);
+  }, [loadBookings]);
 
-const loadBookings = async () => {
-  try {
-    setLoading(true);
-    
-    // Check if user is authenticated
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setError('Please login to view your bookings');
-      router.push('/login?redirect=/bookings');
-      return;
-    }
-
-    const response = await bookingAPI.getUserBookings();
-    
-    // Handle different possible response formats
-    let bookingsData: any[] = [];
-    if (Array.isArray(response.data)) {
-      // Case 1: response.data is directly the array
-      bookingsData = response.data;
-    } else if (response.data && typeof response.data === 'object') {
-      // Case 2: response.data is an object that might contain a bookings array
-      const data = response.data as any;
-      if (Array.isArray(data.bookings)) {
-        bookingsData = data.bookings;
-      } else if (Array.isArray(data.data)) {
-        bookingsData = data.data;
-      }
-    }
-    
-    console.log('Bookings data:', bookingsData);
-
-    // Format the bookings to match our frontend interface
-    const formattedBookings = bookingsData.map((booking: any) => ({
-      id: booking.id,
-      bookingId: booking.bookingId || `BK${booking.id?.toString().padStart(3, '0')}`,
-      showId: booking.show_id || booking.showId,
-      seatNumbers: booking.seats ? booking.seats.split(',') : booking.seatNumbers || [],
-      totalAmount: booking.total_amount || booking.totalAmount,
-      status: booking.status,
-      movie_title: booking.movie_title,
-      cinema_name: booking.cinema_name,
-      start_time: booking.start_time,
-      poster_url: booking.poster_url,
-      end_time: booking.end_time,
-      booking_time: booking.booking_time
-    }));
-
-    setBookings(formattedBookings);
-  } catch (error: any) {
-    console.error('Error loading bookings:', error);
-    
-    if (error.response?.status === 401) {
-      setError('Session expired. Please login again.');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      router.push('/login?redirect=/bookings');
-    } else {
-      setError('Failed to load your bookings');
-    }
-  } finally {
-    setLoading(false);
-  }
-};
+// ...existing code...
 
   const formatDateTime = (dateTimeString: string) => {
     try {
@@ -178,7 +188,7 @@ const loadBookings = async () => {
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">No Bookings Found</h2>
             <p className="text-gray-600 mb-6 font-medium">
-              You haven't made any bookings yet.
+              You haven&apos;t made any bookings yet.
             </p>
             <button
               onClick={() => router.push('/')}

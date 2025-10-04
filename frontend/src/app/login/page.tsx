@@ -1,6 +1,7 @@
-'use client';
+"use client";
+export const dynamic = 'force-dynamic';
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 interface User {
@@ -11,8 +12,9 @@ interface User {
 
 export default function LoginPage() {
   const router = useRouter();
-  const params = useSearchParams();
-  const redirect = params.get('redirect') || '/';
+  // useSearchParams caused prerender issues in some Next.js builds — instead
+  // read the redirect from the browser URL directly since this is a client component
+  const redirect = (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('redirect') : null) || '/';
   const [formData, setFormData] = useState({
     email: '',
     password: ''
