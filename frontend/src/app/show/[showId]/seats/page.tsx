@@ -101,7 +101,7 @@ export default function SeatSelectionPage() {
   const totalAmount = selectedSeats.length * (show?.price || 0);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return <div className="min-h-screen flex items-center justify-center text-gray-800">Loading...</div>;
   }
 
   return (
@@ -112,22 +112,23 @@ export default function SeatSelectionPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button 
-                onClick={() => router.push('/')}
-                className="flex items-center text-gray-600 hover:text-primary"
-              >
-                <ChevronLeft size={20} />
-                Back
-              </button>
+  onClick={() => router.back()}
+  className="flex items-center gap-2 px-4 py-2.5 text-gray-800 hover:text-red hover:bg-primary border border-gray-600 hover:border-primary rounded-lg transition-all duration-300 font-semibold group"
+>
+  <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform duration-300" />
+  Back
+</button>
+
               <div>
-                <h1 className="text-xl font-bold text-primary">{show?.movie_title}</h1>
-                <p className="text-gray-600 text-sm">{show?.cinema_name}</p>
+                <h1 className="text-xl font-bold text-gray-900">{show?.movie_title}</h1>
+                <p className="text-gray-700 text-sm font-medium">{show?.cinema_name}</p>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-700 font-medium">
                 {new Date(show?.start_time || '').toLocaleDateString()}
               </div>
-              <div className="font-semibold">
+              <div className="font-semibold text-gray-900">
                 {selectedSeats.length} Seats Selected
               </div>
             </div>
@@ -142,7 +143,7 @@ export default function SeatSelectionPage() {
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <div className="text-center mb-8">
                 <div className="w-32 h-1 bg-gray-300 mx-auto mb-2 rounded"></div>
-                <div className="text-sm text-gray-600">SCREEN THIS WAY</div>
+                <div className="text-sm text-gray-700 font-medium">SCREEN THIS WAY</div>
               </div>
 
               <div className="grid grid-cols-10 gap-2 max-w-md mx-auto">
@@ -155,12 +156,12 @@ export default function SeatSelectionPage() {
                       w-8 h-8 rounded text-xs font-medium transition-all
                       ${
                         getSeatStatus(seat) === 'selected'
-                          ? 'bg-secondary text-white'
+                          ? 'bg-green-500 text-white font-bold' // Selected seats are green with white text
                           : getSeatStatus(seat) === 'booked'
-                          ? 'bg-gray-300 cursor-not-allowed'
+                          ? 'bg-gray-300 cursor-not-allowed text-gray-600' // Booked seats with visible text
                           : getSeatStatus(seat) === 'blocked'
-                          ? 'bg-yellow-200 cursor-not-allowed'
-                          : 'bg-green-500 hover:bg-green-600 text-white'
+                          ? 'bg-gray-300 cursor-not-allowed text-gray-600' // Blocked seats with visible text
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-300' // Available seats with dark text
                       }
                     `}
                   >
@@ -170,22 +171,18 @@ export default function SeatSelectionPage() {
               </div>
 
               {/* Seat Legend */}
-              <div className="flex justify-center space-x-6 mt-8 text-sm">
+              <div className="flex justify-center space-x-6 mt-8 text-sm text-gray-800 font-medium">
                 <div className="flex items-center">
-                  <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
+                  <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded mr-2"></div>
                   Available
                 </div>
                 <div className="flex items-center">
-                  <div className="w-4 h-4 bg-secondary rounded mr-2"></div>
+                  <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
                   Selected
                 </div>
                 <div className="flex items-center">
                   <div className="w-4 h-4 bg-gray-300 rounded mr-2"></div>
-                  Booked
-                </div>
-                <div className="flex items-center">
-                  <div className="w-4 h-4 bg-yellow-200 rounded mr-2"></div>
-                  Blocked
+                  Booked/Blocked
                 </div>
               </div>
             </div>
@@ -193,27 +190,27 @@ export default function SeatSelectionPage() {
 
           {/* Booking Summary */}
           <div className="bg-white rounded-lg shadow-sm border p-6 h-fit sticky top-4">
-            <h2 className="text-lg font-semibold text-primary mb-4 flex items-center">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <Ticket size={20} className="mr-2" />
               Booking Summary
             </h2>
 
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between text-sm">
+            <div className="space-y-3 mb-6 text-gray-800">
+              <div className="flex justify-between text-sm font-medium">
                 <span>Selected Seats:</span>
-                <span className="font-semibold">
+                <span className="font-semibold text-gray-900">
                   {selectedSeats.map(s => s.seat_number).join(', ') || 'None'}
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-sm font-medium">
                 <span>Number of Seats:</span>
-                <span>{selectedSeats.length}</span>
+                <span className="text-gray-900">{selectedSeats.length}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-sm font-medium">
                 <span>Price per Seat:</span>
-                <span>₹{show?.price}</span>
+                <span className="text-gray-900">₹{show?.price}</span>
               </div>
-              <div className="border-t pt-2 flex justify-between font-semibold">
+              <div className="border-t pt-2 flex justify-between font-semibold text-gray-900">
                 <span>Total Amount:</span>
                 <span className="text-secondary">₹{totalAmount}</span>
               </div>
@@ -222,7 +219,7 @@ export default function SeatSelectionPage() {
             <button
               onClick={handleProceedToPay}
               disabled={selectedSeats.length === 0 || processing}
-              className="w-full bg-secondary hover:bg-red-600 disabled:bg-gray-300 text-white py-3 rounded-lg font-semibold transition-colors flex items-center justify-center"
+              className="w-full bg-green-400 hover:bg-green-500 disabled:bg-gray-300 text-white py-3 rounded-lg font-semibold transition-colors flex items-center justify-center"
             >
               {processing ? (
                 <>
@@ -234,7 +231,7 @@ export default function SeatSelectionPage() {
               )}
             </button>
 
-            <div className="mt-4 text-xs text-gray-500 text-center">
+            <div className="mt-4 text-xs text-gray-600 text-center font-medium">
               <Users size={14} className="inline mr-1" />
               Maximum 6 seats allowed per booking
             </div>
