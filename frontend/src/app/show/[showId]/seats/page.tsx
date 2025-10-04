@@ -1,45 +1,84 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { seatAPI, showAPI, userAPI, bookingAPI, type Seat, type Show } from '@/lib/api';
+import { seatAPI, showAPI, bookingAPI, type Seat, type Show } from '@/lib/api';
 import { ChevronLeft, Users, Ticket } from 'lucide-react';
 
 export default function SeatSelectionPage() {
-  const params = useParams();
+  const params = useParams<{ showId: string }>();
   const router = useRouter();
-  const showId = parseInt(params.showId as string);
-  
+  const showId = parseInt(params.showId);
+
   const [seats, setSeats] = useState<Seat[]>([]);
   const [show, setShow] = useState<Show | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     loadData();
+    checkPendingBooking();
   }, [showId]);
 
   const loadData = async () => {
     try {
       const [seatsRes, showRes] = await Promise.all([
         seatAPI.getSeats(showId),
-        showAPI.getShow(showId)
+        showAPI.getShow(showId),
       ]);
-      
+
       setSeats(seatsRes.data);
       setShow(showRes.data);
     } catch (error) {
       console.error('Error loading data:', error);
+      setError('Failed to load show data');
     } finally {
       setLoading(false);
     }
   };
 
+  const checkPendingBooking = () => {
+    const pendingBooking = localStorage.getItem('pendingBooking');
+    if (pendingBooking) {
+      try {
+        const bookingData = JSON.parse(pendingBooking);
+        if (
+          bookingData.showId === showId &&
+          Date.now() - bookingData.timestamp < 3600000
+        ) {
+          setSelectedSeats(bookingData.selectedSeats || []);
+        }
+        localStorage.removeItem('pendingBooking');
+      } catch {
+        localStorage.removeItem('pendingBooking');
+      }
+    }
+  };
+
+  const isUserAuthenticated = () => {
+    try {
+      const token = localStorage.getItem('token');
+      const user = localStorage.getItem('user');
+
+      if (!token || !user) return false;
+      if (token.split('.').length !== 3) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        return false;
+      }
+      return true;
+    } catch {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      return false;
+    }
+  };
+
   const handleSeatClick = (seat: Seat) => {
     if (seat.status !== 'available') return;
-    
-    if (selectedSeats.find(s => s.id === seat.id)) {
-      setSelectedSeats(selectedSeats.filter(s => s.id !== seat.id));
+    if (selectedSeats.find((s) => s.id === seat.id)) {
+      setSelectedSeats(selectedSeats.filter((s) => s.id !== seat.id));
     } else {
       if (selectedSeats.length >= 6) {
         alert('Maximum 6 seats can be selected');
@@ -50,58 +89,115 @@ export default function SeatSelectionPage() {
   };
 
   const getSeatStatus = (seat: Seat) => {
-    if (selectedSeats.find(s => s.id === seat.id)) return 'selected';
+    if (selectedSeats.find((s) => s.id === seat.id)) return 'selected';
     return seat.status;
   };
 
+  const totalAmount = selectedSeats.length * (show?.price || 0);
+
   const handleProceedToPay = async () => {
-    if (selectedSeats.length === 0) return;
+    if (selectedSeats.length === 0) {
+      alert('Please select at least one seat');
+      return;
+    }
 
     setProcessing(true);
-    
-    try {
-      // Get or create demo user
-      const userResponse = await userAPI.getDemoUser();
-      const user = userResponse.data;
+    setError('');
 
-      // Create booking
+    try {
+      if (!isUserAuthenticated()) {
+        localStorage.setItem(
+          'pendingBooking',
+          JSON.stringify({
+            showId,
+            selectedSeats,
+            totalAmount,
+            timestamp: Date.now(),
+          }),
+        );
+        router.push(`/login?redirect=/show/${showId}/seats`);
+        return;
+      }
+
+      const bookingResponse = await bookingAPI.create({
+        showId,
+        seatNumbers: selectedSeats.map((s) => s.seat_number),
+        totalAmount,
+      });
+
+      const bookingDataFromAPI = bookingResponse.data.booking;
+
+      const finalBookingId =
+        bookingDataFromAPI?.bookingId || bookingDataFromAPI?.id || Date.now();
+
       const bookingData = {
-        userId: user.id,
-        showId: showId,
-        seatNumbers: selectedSeats.map(seat => seat.seat_number),
-        totalAmount: totalAmount
+        id: finalBookingId,
+        bookingId: finalBookingId,
+        selectedSeats: selectedSeats.map((s) => s.seat_number),
+        totalAmount,
+        movie_title: show?.movie_title || 'Movie',
+        cinema_name: show?.cinema_name || 'Cinema',
+        start_time: show?.start_time || new Date().toISOString(),
       };
 
-      console.log('Creating booking with data:', bookingData);
-      
-      const bookingResponse = await bookingAPI.create(bookingData);
-      const booking = bookingResponse.data;
+      sessionStorage.setItem('lastBooking', JSON.stringify(bookingData));
+      router.push(`/booking/${finalBookingId}`);
+    } catch (error: any) {
+      console.error('Booking error:', error);
+      let errorMessage = 'Failed to create booking. Please try again.';
 
-      console.log('Booking created:', booking);
+      if (error.response) {
+        switch (error.response.status) {
+          case 401:
+            errorMessage = 'Your session has expired. Please login again.';
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.setItem(
+              'pendingBooking',
+              JSON.stringify({
+                showId,
+                selectedSeats,
+                totalAmount,
+                timestamp: Date.now(),
+              }),
+            );
+            router.push(`/login?redirect=/show/${showId}/seats`);
+            return;
 
-      // Save booking details for confirmation page
-      sessionStorage.setItem('lastBooking', JSON.stringify({
-        ...booking,
-        movie_title: show?.movie_title,
-        cinema_name: show?.cinema_name,
-        start_time: show?.start_time
-      }));
+          case 400:
+            errorMessage =
+              error.response.data?.message ||
+              'Invalid booking data. Please check your selection.';
+            break;
 
-      // Redirect to confirmation page
-      router.push(`/booking/${booking.bookingId}`);
+          case 409:
+            errorMessage =
+              'Some selected seats are no longer available. Please select different seats.';
+            loadData();
+            setSelectedSeats([]);
+            break;
 
-    } catch (error) {
-      console.error('Error creating booking:', error);
-      alert('Failed to create booking. Please try again.');
+          case 500:
+            errorMessage = 'Server error. Please try again later.';
+            break;
+        }
+      } else if (error.request) {
+        errorMessage = 'Network error. Please check your connection.';
+      }
+
+      setError(errorMessage);
+      alert(errorMessage);
     } finally {
       setProcessing(false);
     }
   };
 
-  const totalAmount = selectedSeats.length * (show?.price || 0);
-
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-gray-800">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-800">
+        Loading...
+      </div>
+    );
   }
 
   return (
@@ -112,16 +208,19 @@ export default function SeatSelectionPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button 
-  onClick={() => router.back()}
-  className="flex items-center gap-2 px-4 py-2.5 text-gray-800 hover:text-red hover:bg-primary border border-gray-600 hover:border-primary rounded-lg transition-all duration-300 font-semibold group"
->
-  <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform duration-300" />
-  Back
-</button>
-
+              onClick={() => router.back()}
+              className="flex items-center gap-2 px-4 py-2.5 text-gray-800 hover:text-white hover:bg-red-600 border border-gray-300 hover:border-red-600 rounded-lg transition-all duration-300 font-semibold group"
+            >
+              <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform duration-300" />
+              Back
+            </button>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">{show?.movie_title}</h1>
-                <p className="text-gray-700 text-sm font-medium">{show?.cinema_name}</p>
+                <h1 className="text-xl font-bold text-gray-900">
+                  {show?.movie_title}
+                </h1>
+                <p className="text-gray-700 text-sm font-medium">
+                  {show?.cinema_name}
+                </p>
               </div>
             </div>
             <div className="text-right">
@@ -136,57 +235,78 @@ export default function SeatSelectionPage() {
         </div>
       </header>
 
+      {error && (
+        <div className="max-w-6xl mx-auto px-4 py-2">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-red-700 text-sm">{error}</p>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Seat Map */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <div className="text-center mb-8">
-                <div className="w-32 h-1 bg-gray-300 mx-auto mb-2 rounded"></div>
-                <div className="text-sm text-gray-700 font-medium">SCREEN THIS WAY</div>
-              </div>
+  <div className="bg-white rounded-lg shadow-sm border p-6">
+    <div className="text-center mb-8">
+      <div className="w-32 h-1 bg-gray-300 mx-auto mb-2 rounded"></div>
+      <div className="text-sm text-gray-700 font-medium">
+        SCREEN THIS WAY
+      </div>
+    </div>
 
-              <div className="grid grid-cols-10 gap-2 max-w-md mx-auto">
-                {seats.map((seat) => (
-                  <button
-                    key={seat.id}
-                    onClick={() => handleSeatClick(seat)}
-                    disabled={seat.status !== 'available'}
-                    className={`
-                      w-8 h-8 rounded text-xs font-medium transition-all
-                      ${
-                        getSeatStatus(seat) === 'selected'
-                          ? 'bg-green-500 text-white font-bold' // Selected seats are green with white text
-                          : getSeatStatus(seat) === 'booked'
-                          ? 'bg-gray-300 cursor-not-allowed text-gray-600' // Booked seats with visible text
-                          : getSeatStatus(seat) === 'blocked'
-                          ? 'bg-gray-300 cursor-not-allowed text-gray-600' // Blocked seats with visible text
-                          : 'bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-300' // Available seats with dark text
-                      }
-                    `}
-                  >
-                    {seat.seat_number}
-                  </button>
-                ))}
-              </div>
-
-              {/* Seat Legend */}
-              <div className="flex justify-center space-x-6 mt-8 text-sm text-gray-800 font-medium">
-                <div className="flex items-center">
-                  <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded mr-2"></div>
-                  Available
-                </div>
-                <div className="flex items-center">
-                  <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
-                  Selected
-                </div>
-                <div className="flex items-center">
-                  <div className="w-4 h-4 bg-gray-300 rounded mr-2"></div>
-                  Booked/Blocked
-                </div>
-              </div>
-            </div>
+    <div className="flex gap-6 max-w-md mx-auto">
+      {/* Row Letters - moved further left with more spacing */}
+      <div className="flex flex-col gap-2 justify-center mr-4">
+        {Array.from({ length: 10 }, (_, i) => (
+          <div key={i} className="w-6 h-8 flex items-center justify-center text-xs font-semibold text-gray-600">
+            {String.fromCharCode(65 + i)}
           </div>
+        ))}
+      </div>
+      
+      {/* Seat Grid */}
+      <div className="grid grid-cols-10 gap-2">
+        {seats.map((seat) => (
+          <button
+            key={seat.id}
+            onClick={() => handleSeatClick(seat)}
+            disabled={seat.status !== 'available'}
+            className={`
+              w-8 h-8 rounded text-xs font-medium transition-all
+              ${
+                getSeatStatus(seat) === 'selected'
+                  ? 'bg-green-500 text-white font-bold'
+                  : getSeatStatus(seat) === 'booked' ||
+                    getSeatStatus(seat) === 'blocked'
+                  ? 'bg-gray-300 cursor-not-allowed text-gray-600'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-300'
+              }
+            `}
+          >
+            {seat.seat_number.replace(/[A-Z]/g, '')}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {/* Seat Legend */}
+    <div className="flex justify-center space-x-6 mt-8 text-sm text-gray-800 font-medium">
+      <div className="flex items-center">
+        <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded mr-2"></div>
+        Available
+      </div>
+      <div className="flex items-center">
+        <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
+        Selected
+      </div>
+      <div className="flex items-center">
+        <div className="w-4 h-4 bg-gray-300 rounded mr-2"></div>
+        Booked/Blocked
+      </div>
+    </div>
+  </div>
+</div>
 
           {/* Booking Summary */}
           <div className="bg-white rounded-lg shadow-sm border p-6 h-fit sticky top-4">
@@ -199,7 +319,7 @@ export default function SeatSelectionPage() {
               <div className="flex justify-between text-sm font-medium">
                 <span>Selected Seats:</span>
                 <span className="font-semibold text-gray-900">
-                  {selectedSeats.map(s => s.seat_number).join(', ') || 'None'}
+                  {selectedSeats.map((s) => s.seat_number).join(', ') || 'None'}
                 </span>
               </div>
               <div className="flex justify-between text-sm font-medium">

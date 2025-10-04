@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { AxiosResponse } from 'axios';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -39,6 +40,17 @@ export interface Seat {
   status: 'available' | 'booked' | 'blocked';
 }
 
+export interface Booking {
+  id?: string | number;
+  _id?: string | number;
+  bookingId?: string | number;
+  showId: number;
+  seatNumbers: string[];
+  totalAmount: number;
+  status: 'confirmed' | 'pending' | 'cancelled';
+}
+
+
 // API methods
 export const cinemaAPI = {
   getAll: () => api.get<Cinema[]>('/cinemas'),
@@ -60,12 +72,64 @@ export const showAPI = {
 export const seatAPI = {
   getSeats: (showId: number) => api.get<Seat[]>(`/seats/show/${showId}`),
 };
-export const bookingAPI = {
-  create: (data: any) => api.post('/bookings', data),
-  getUserBookings: (userId: number) => api.get(`/bookings/user/${userId}`),
-};
+//export const bookingAPI = {
+ // create: (data: any) => api.post('/bookings', data),
+  //getUserBookings: (userId: number) => api.get(`/bookings/user/${userId}`),
+//};
 
 export const userAPI = {
   create: (data: any) => api.post('/users', data),
   getDemoUser: () => api.get('/users/demo'),
 };
+
+// frontend/src/lib/api.ts
+// In your api.ts file
+
+// Request interceptor to add token
+api.interceptors.request.use(
+  (config) => {
+    // Only run in client-side (Next.js compatibility)
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor to handle auth errors automatically
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Only run in client-side
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+export const bookingAPI = {
+  create: (bookingData: {
+    showId: number;
+    seatNumbers: string[];
+    totalAmount: number;
+  }): Promise<{ data: { message: string; booking: Booking } }> => 
+    api.post('/bookings', bookingData),
+
+  getBooking: (bookingId: string): Promise<{ data: { booking: Booking } }> => 
+    api.get(`/bookings/${bookingId}`),
+
+  getUserBookings: (): Promise<{ data: Booking[] }> => 
+    api.get('/bookings/user/${userId}'),
+};
+
+export default api;

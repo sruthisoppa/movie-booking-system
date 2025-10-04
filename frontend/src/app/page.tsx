@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { cinemaAPI, movieAPI, type Cinema, type Movie } from '@/lib/api';
-import { Play, Star, MapPin, Clock, Search, Filter, Calendar, TrendingUp } from 'lucide-react';
+import { Play, Star, MapPin, Clock, Search, Filter, Calendar, TrendingUp, User } from 'lucide-react';
 
 export default function Home() {
   const router = useRouter();
@@ -15,7 +15,14 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('All');
   const [sortBy, setSortBy] = useState('popular');
+  const [user, setUser] = useState<User | null>(null);
   const cinemasRef = useRef<HTMLDivElement>(null);
+  type User = {
+  id: number;
+  name: string;
+  email: string;
+  created_at: string;
+};
 
   const genres = ['All', 'Action', 'Drama', 'Comedy', 'Thriller', 'Sci-Fi', 'Adventure', 'Romance'];
 
@@ -26,6 +33,26 @@ export default function Home() {
   useEffect(() => {
     filterAndSortMovies();
   }, [movies, searchTerm, selectedGenre, sortBy]);
+
+  useEffect(() => {
+  const savedUser = localStorage.getItem('user');
+  if (savedUser) {
+    try {
+      const userData: User = JSON.parse(savedUser);
+      setUser(userData);
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+    }
+  }
+}, []);
+
+// Logout function
+const handleLogout = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  setUser(null);
+  router.refresh();
+};
 
   const loadData = async () => {
     try {
@@ -145,26 +172,54 @@ export default function Home() {
     <div className="min-h-screen bg-white">
       {/* Clean Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">BMF</span>
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">BookMyFilm</h1>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 px-4 py-2 text-gray-700 bg-gray-50 rounded-lg">
-                <MapPin size={16} className="text-red-600" />
-                <span className="font-medium">Bangalore</span>
-              </div>
-              
-          
-            </div>
-          </div>
+  <div className="max-w-7xl mx-auto px-6 py-4">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center space-x-3">
+        <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
+          <span className="text-white font-bold text-sm">BMF</span>
         </div>
-      </header>
+        <h1 className="text-2xl font-bold text-gray-900">BookMyFilm</h1>
+      </div>
+      
+      <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 px-4 py-2 text-gray-700 bg-gray-50 rounded-lg">
+          <MapPin size={16} className="text-red-600" />
+          <span className="font-medium">Bangalore</span>
+        </div>
+        
+        {user ? (
+          // Show when user is logged in
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 text-gray-700">
+              <User size={16} className="text-red-600" />
+              <span className="font-medium">Hello, {user.name}</span>
+            </div>
+            <button 
+              onClick={() => router.push('/bookings')}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 font-medium transition-colors text-sm"
+            >
+              My Bookings
+            </button>
+            <button 
+              onClick={handleLogout}
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 font-medium transition-colors text-sm"
+            >
+              Logout
+            </button>
+          </div>
+        ) : (
+          // Show when user is not logged in
+          <button 
+            onClick={() => router.push('/login')}
+            className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 font-semibold transition-colors"
+          >
+            Sign In
+          </button>
+        )}
+      </div>
+    </div>
+  </div>
+</header>
 
       {/* Search Section */}
       <section className="bg-gray-50 border-b border-gray-200 py-8">
