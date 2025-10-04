@@ -45,9 +45,17 @@ export interface Booking {
   _id?: string | number;
   bookingId?: string | number;
   showId: number;
-  seatNumbers: string[];
+  seatNumbers: string[]; // This will come from 'seats' field
   totalAmount: number;
   status: 'confirmed' | 'pending' | 'cancelled';
+  movie_title?: string;
+  cinema_name?: string;
+  start_time?: string;
+  // Add fields from your backend response
+  seats?: string; // This is the GROUP_CONCAT result
+  poster_url?: string;
+  end_time?: string;
+  booking_time?: string;
 }
 
 
@@ -86,21 +94,7 @@ export const userAPI = {
 // In your api.ts file
 
 // Request interceptor to add token
-api.interceptors.request.use(
-  (config) => {
-    // Only run in client-side (Next.js compatibility)
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+
 
 // Response interceptor to handle auth errors automatically
 api.interceptors.response.use(
@@ -117,6 +111,18 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+// Add JWT token to all requests
+// Add JWT token to all requests
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
 export const bookingAPI = {
   create: (bookingData: {
     showId: number;
@@ -129,7 +135,11 @@ export const bookingAPI = {
     api.get(`/bookings/${bookingId}`),
 
   getUserBookings: (): Promise<{ data: Booking[] }> => 
-    api.get('/bookings/user/${userId}'),
+    api.get('/bookings/my-bookings').then(response => {
+      // Transform the backend response { bookings: [...] } to { data: [...] }
+      return {
+        data: response.data.bookings || response.data || []
+      };
+    }),
 };
-
 export default api;

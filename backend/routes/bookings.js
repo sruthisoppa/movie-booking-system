@@ -68,6 +68,7 @@ router.post('/', async (req, res) => {
 });
 
 // Get user's bookings
+// In your backend routes/bookings.js
 router.get('/my-bookings', async (req, res) => {
   try {
     const [bookings] = await promisePool.execute(`
@@ -78,7 +79,7 @@ router.get('/my-bookings', async (req, res) => {
         c.name as cinema_name,
         s.start_time,
         s.end_time,
-        GROUP_CONCAT(seats.seat_number) as seats
+        GROUP_CONCAT(seats.seat_number) as seat_numbers
       FROM bookings b
       JOIN shows s ON b.show_id = s.id
       JOIN movies m ON s.movie_id = m.id
@@ -90,7 +91,13 @@ router.get('/my-bookings', async (req, res) => {
       ORDER BY b.booking_time DESC
     `, [req.user.id]);
 
-    res.json({ bookings });
+    const formattedBookings = bookings.map(booking => ({
+      ...booking,
+      seatNumbers: booking.seat_numbers ? booking.seat_numbers.split(',') : [],
+      bookingId: `BK${booking.id.toString().padStart(3, '0')}`
+    }));
+
+    res.json({ data: formattedBookings });
   } catch (error) {
     console.error('Get bookings error:', error);
     res.status(500).json({ message: 'Server error' });
