@@ -92,7 +92,7 @@ export default function MovieShowsPage() {
   ))];
 
   // Get unique screens
-  const uniqueScreens = [...new Set(shows.map(show => show.screen_name))];
+ // const uniqueScreens = [...new Set(shows.map(show => show.screen_name))];
 
   // Get unique formats (mock data - you can replace with actual format data)
   const formats = ['2D', '3D', 'IMAX', 'Dolby Atmos', '4DX'];

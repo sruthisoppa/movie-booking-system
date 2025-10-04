@@ -113,7 +113,7 @@ export default function BookingConfirmationPage() {
             Booking Not Found
           </h1>
           <p className="text-gray-600 mb-6 font-medium">
-            We couldn't find your booking details.
+            We could not find your booking details.
           </p>
           <button
             onClick={() => router.push('/')}
