@@ -32,6 +32,8 @@ export default function Home() {
 
   useEffect(() => {
     filterAndSortMovies();
+    // filterAndSortMovies is stable in this component (no external deps).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [movies, searchTerm, selectedGenre, sortBy]);
 
   useEffect(() => {

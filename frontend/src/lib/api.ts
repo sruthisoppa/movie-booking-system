@@ -1,6 +1,4 @@
 import axios from 'axios';
-import { AxiosResponse } from 'axios';
-
 const API_BASE_URL = 'http://localhost:5000/api';
 
 export const api = axios.create({
@@ -89,13 +87,9 @@ export const userAPI = {
   create: (data: any) => api.post('/users', data),
   getDemoUser: () => api.get('/users/demo'),
 };
-
 // frontend/src/lib/api.ts
 // In your api.ts file
-
 // Request interceptor to add token
-
-
 // Response interceptor to handle auth errors automatically
 api.interceptors.response.use(
   (response) => response,

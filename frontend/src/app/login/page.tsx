@@ -64,9 +64,7 @@ export default function LoginPage() {
       router.push(`/show/${bookingData.showId}/seats`);
     } else {
       // Use the redirect parameter from URL or default to home
-      const urlParams = new URLSearchParams(window.location.search);
-      const redirectTo = urlParams.get('redirect') || '/';
-      router.push(redirectTo);
+      router.push(redirect);
     }
     } catch (err) {
       console.error('Login error:', err);
@@ -226,7 +224,7 @@ export default function LoginPage() {
             {/* Sign up link */}
             <div className="text-center pt-4">
               <p className="text-gray-600 text-sm">
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <Link 
                   href="/signup" 
                   className="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200"

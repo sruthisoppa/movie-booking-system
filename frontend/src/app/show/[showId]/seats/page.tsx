@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { AxiosError } from 'axios';
 import { useParams, useRouter } from 'next/navigation';
 import { seatAPI, showAPI, bookingAPI, type Seat, type Show } from '@/lib/api';
 import { ChevronLeft, Users, Ticket } from 'lucide-react';
@@ -19,6 +20,9 @@ export default function SeatSelectionPage() {
   useEffect(() => {
     loadData();
     checkPendingBooking();
+    // loadData and checkPendingBooking are defined inside this component and
+    // we intentionally only want to run this effect when showId changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showId]);
 
   const loadData = async () => {
@@ -142,12 +146,13 @@ export default function SeatSelectionPage() {
 
       sessionStorage.setItem('lastBooking', JSON.stringify(bookingData));
       router.push(`/booking/${finalBookingId}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Booking error:', error);
       let errorMessage = 'Failed to create booking. Please try again.';
 
-      if (error.response) {
-        switch (error.response.status) {
+      if ((error as AxiosError).response) {
+        const axiosErr = error as AxiosError;
+        switch (axiosErr.response?.status) {
           case 401:
             errorMessage = 'Your session has expired. Please login again.';
             localStorage.removeItem('token');
@@ -164,9 +169,9 @@ export default function SeatSelectionPage() {
             router.push(`/login?redirect=/show/${showId}/seats`);
             return;
 
-          case 400:
+            case 400:
             errorMessage =
-              error.response.data?.message ||
+              (axiosErr.response?.data as any)?.message ||
               'Invalid booking data. Please check your selection.';
             break;
 
@@ -181,7 +186,7 @@ export default function SeatSelectionPage() {
             errorMessage = 'Server error. Please try again later.';
             break;
         }
-      } else if (error.request) {
+      } else if ((error as AxiosError).request) {
         errorMessage = 'Network error. Please check your connection.';
       }
 
