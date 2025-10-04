@@ -1,84 +1,99 @@
 const express = require('express');
-const router = express.Router();
 const { promisePool } = require('../config/database');
+const auth = require('../middleware/auth');
 
-// Create a new booking
+const router = express.Router();
+
+// Apply auth middleware to all booking routes
+router.use(auth);
+
+// Create booking
 router.post('/', async (req, res) => {
-  const connection = await promisePool.getConnection();
-  
+  let connection;
   try {
+    const { showId, seatNumbers, totalAmount } = req.body;
+    const userId = req.user.id;
+
+    connection = await promisePool.getConnection();
     await connection.beginTransaction();
-    
-    const { userId, showId, seatNumbers, totalAmount } = req.body;
-    
-    console.log('Creating booking:', { userId, showId, seatNumbers, totalAmount });
-    
-    // Create booking record
+
+    // 1. Create booking
     const [bookingResult] = await connection.execute(
       'INSERT INTO bookings (user_id, show_id, total_amount) VALUES (?, ?, ?)',
       [userId, showId, totalAmount]
     );
-    
+
     const bookingId = bookingResult.insertId;
-    
-    // Update seats status to booked
+
+    // 2. Update seats status to booked and link to booking
     for (const seatNumber of seatNumbers) {
       await connection.execute(
-        'UPDATE seats SET booking_id = ?, status = "booked" WHERE show_id = ? AND seat_number = ?',
+        'UPDATE seats SET status = "booked", booking_id = ? WHERE show_id = ? AND seat_number = ?',
         [bookingId, showId, seatNumber]
       );
     }
-    
+
     await connection.commit();
-    
-    console.log(`Booking ${bookingId} created successfully for seats: ${seatNumbers.join(', ')}`);
-    
-    res.json({ 
-      bookingId, 
-      message: 'Booking confirmed successfully',
-      seats: seatNumbers,
-      totalAmount 
+
+    // 3. Get complete booking details
+    const [bookings] = await connection.execute(`
+      SELECT 
+        b.*,
+        m.title as movie_title,
+        c.name as cinema_name,
+        s.start_time,
+        GROUP_CONCAT(seats.seat_number) as seats
+      FROM bookings b
+      JOIN shows s ON b.show_id = s.id
+      JOIN movies m ON s.movie_id = m.id
+      JOIN screens sc ON s.screen_id = sc.id
+      JOIN cinemas c ON sc.cinema_id = c.id
+      JOIN seats ON seats.booking_id = b.id
+      WHERE b.id = ?
+      GROUP BY b.id
+    `, [bookingId]);
+
+    res.status(201).json({
+      message: 'Booking created successfully',
+      booking: bookings[0]
     });
-    
+
   } catch (error) {
-    await connection.rollback();
-    console.error('Error creating booking:', error);
-    res.status(500).json({ error: 'Failed to create booking', details: error.message });
+    if (connection) await connection.rollback();
+    console.error('Booking error:', error);
+    res.status(500).json({ message: 'Server error' });
   } finally {
-    connection.release();
+    if (connection) connection.release();
   }
 });
 
-// Get user's booking history
-router.get('/user/:userId', async (req, res) => {
+// Get user's bookings
+router.get('/my-bookings', async (req, res) => {
   try {
-    const userId = req.params.userId;
-    
     const [bookings] = await promisePool.execute(`
       SELECT 
         b.*,
         m.title as movie_title,
         m.poster_url,
         c.name as cinema_name,
-        c.location as cinema_location,
         s.start_time,
         s.end_time,
-        GROUP_CONCAT(st.seat_number) as booked_seats
+        GROUP_CONCAT(seats.seat_number) as seats
       FROM bookings b
       JOIN shows s ON b.show_id = s.id
       JOIN movies m ON s.movie_id = m.id
       JOIN screens sc ON s.screen_id = sc.id
       JOIN cinemas c ON sc.cinema_id = c.id
-      LEFT JOIN seats st ON b.id = st.booking_id
+      LEFT JOIN seats ON seats.booking_id = b.id
       WHERE b.user_id = ?
       GROUP BY b.id
       ORDER BY b.booking_time DESC
-    `, [userId]);
-    
-    res.json(bookings);
+    `, [req.user.id]);
+
+    res.json({ bookings });
   } catch (error) {
-    console.error('Error fetching user bookings:', error);
-    res.status(500).json({ error: 'Failed to fetch bookings', details: error.message });
+    console.error('Get bookings error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
