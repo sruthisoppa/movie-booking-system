@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { bookingAPI, type Booking } from '@/lib/api';
-import { ChevronLeft, Ticket, Calendar, Clock, MapPin, Users } from 'lucide-react';
+import { ChevronLeft, Ticket, Calendar, Clock, MapPin } from 'lucide-react';
 
 interface BookingWithDetails extends Booking {
   movie_title?: string;
@@ -36,7 +36,6 @@ const loadBookings = async () => {
     
     // Handle different possible response formats
     let bookingsData: any[] = [];
-    
     if (Array.isArray(response.data)) {
       // Case 1: response.data is directly the array
       bookingsData = response.data;

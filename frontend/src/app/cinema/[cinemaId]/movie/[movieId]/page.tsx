@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { showAPI, cinemaAPI, movieAPI, type Show, type Cinema, type Movie } from '@/lib/api';
-import { Calendar, Clock, MapPin, ChevronLeft, Film, Users, Ticket, Filter, X, ScreenShare } from 'lucide-react';
+import { Calendar, Clock, MapPin, ChevronLeft, Film, Filter, X, ScreenShare } from 'lucide-react';
 
 export default function MovieShowsPage() {
   const params = useParams();
