@@ -69,6 +69,8 @@ export const movieAPI = {
   getById: (movieId: number) => api.get<Movie>(`/movies/${movieId}`),
 };
 
+
+
 export const showAPI = {
   getShows: (cinemaId?: number, movieId?: number) => 
     api.get<Show[]>('/shows', { params: { cinemaId, movieId } }),
@@ -137,6 +139,60 @@ export const seatAPI = {
   releaseSeat: (showId: number, seatNumber: string): Promise<{ data: { success: boolean; message: string } }> => 
     api.patch('/seats/release', { showId, seatNumber }),
 };
+// Add to your lib/api.ts
+// In your lib/api.ts - Update the adminAPI section
+export const adminAPI = {
+  // Movies
+  getAllMovies: () => api.get<Movie[]>('/admin/movies'),
+  createMovie: (movieData: Omit<Movie, 'id'>) => 
+    api.post('/admin/movies', movieData),
+  updateMovie: (id: number, movieData: Partial<Movie>) => 
+    api.put(`/admin/movies/${id}`, movieData),
+  deleteMovie: (id: number) => 
+    api.delete(`/admin/movies/${id}`),
+  
+  // Cinemas
+  getAllCinemas: () => api.get<Cinema[]>('/admin/cinemas'),
+  createCinema: (cinemaData: Omit<Cinema, 'id'>) => 
+    api.post('/admin/cinemas', cinemaData),
+  updateCinema: (id: number, cinemaData: Partial<Cinema>) => 
+    api.put(`/admin/cinemas/${id}`, cinemaData),
+  deleteCinema: (id: number) => 
+    api.delete(`/admin/cinemas/${id}`),
+  
+  // Screens
+  getAllScreens: () => api.get('/admin/screens'),
+  createScreen: (screenData: { cinema_id: number; name: string; total_seats: number }) => 
+    api.post('/admin/screens', screenData),
+  getCinemaScreens: (cinemaId: number) => 
+    api.get(`/admin/cinemas/${cinemaId}/screens`),
+  updateScreen: (id: number, screenData: Partial<{ name: string; total_seats: number }>) => 
+    api.put(`/admin/screens/${id}`, screenData),
+  deleteScreen: (id: number) => 
+    api.delete(`/admin/screens/${id}`),
+  
+  // Shows
+  getAllShows: () => api.get('/admin/shows'),
+  createShow: (showData: {
+    movie_id: number;
+    screen_id: number;
+    start_time: string;
+    end_time: string;
+    price: number;
+  }) => api.post('/admin/shows', showData),
+  deleteShow: (id: number) => api.delete(`/admin/shows/${id}`),
+  
+  // Show seat details
+  getShowSeatDetails: (showId: number) => 
+    api.get(`/admin/shows/${showId}/seats`)
+};
+
+// Add this interface for seat details
+export interface SeatWithUser extends Seat {
+  user_name?: string;
+  user_email?: string;
+  booking_time?: string;
+}
 
 export const bookingAPI = {
   create: (bookingData: {

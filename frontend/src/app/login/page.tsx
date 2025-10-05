@@ -37,6 +37,22 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
 
+   // In your regular login page - Fix this condition
+if (formData.email === 'admin@moviebook.com' && formData.password === 'admin123') {
+  const devUser = { id: 0, name: 'Admin', email: 'admin@moviebook.com', role: 'admin' };
+  const devToken = 'dev-admin-token';
+  
+  localStorage.setItem('user', JSON.stringify(devUser));
+  localStorage.setItem('token', devToken);
+  document.cookie = `token=${devToken}; path=/; max-age=86400`;
+  document.cookie = `user=${encodeURIComponent(JSON.stringify(devUser))}; path=/; max-age=86400`;
+  
+  window.location.href = '/admin'; // Use window.location instead of router
+  setLoading(false);
+  return;
+
+}
+
     try {
       const res = await fetch('http://localhost:5000/api/users/login', {
         method: 'POST',
@@ -54,9 +70,37 @@ export default function LoginPage() {
 
       const user: User = data.user;
       const token: string = data.token;
+      // Dev shortcut: allow a local test admin without contacting backend
+      if (formData.email === 'admin@moviebook.com' && formData.password === 'hashed_password') {
+        const devUser: User & { role?: string } = {
+          id: user?.id ?? 0,
+          name: user?.name ?? 'Admin',
+          email: 'admin@moviebook.com'
+        };
+        // store role for middleware checks
+        const devUserWithRole = { ...devUser, role: 'admin' } as unknown as User;
+        const devToken = token ?? 'dev-admin-token';
+
+        localStorage.setItem('user', JSON.stringify(devUserWithRole));
+        localStorage.setItem('token', devToken);
+
+        // Also set cookies because the Next middleware checks cookies
+        try {
+          document.cookie = `token=${devToken}; path=/;`;
+          document.cookie = `user=${encodeURIComponent(JSON.stringify(devUserWithRole))}; path=/;`;
+        } catch (e) {
+          // ignore if cookies can't be set in some environments
+        }
+
+        // redirect to admin dashboard immediately
+        router.push('/admin');
+        setLoading(false);
+        return;
+      }
 
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('token', token);
+      
 
     // FIX: Check for pending booking and redirect properly
     const pendingBooking = localStorage.getItem('pendingBooking');
@@ -179,6 +223,7 @@ export default function LoginPage() {
                 </div>
               </div>
             </div>
+            
 
             {/* Remember me & Forgot password */}
             <div className="flex items-center justify-between">
@@ -222,6 +267,18 @@ export default function LoginPage() {
                 'Sign in'
               )}
             </button>
+            // Alternative using SVG icons
+<div className="fixed bottom-6 right-6">
+  <Link
+    href="/admin/login"
+    className="flex items-center space-x-2 bg-gray-800 text-white px-4 py-3 rounded-lg shadow-lg hover:bg-gray-700 transition-colors"
+  >
+    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+    <span>Admin Login</span>
+  </Link>
+</div>
 
             {/* Sign up link */}
             <div className="text-center pt-4">

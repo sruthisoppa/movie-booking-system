@@ -16,8 +16,11 @@ const initDatabase = async () => {
         id INT PRIMARY KEY AUTO_INCREMENT,
         name VARCHAR(100) NOT NULL,
         email VARCHAR(100) UNIQUE NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        password VARCHAR(255) NOT NULL, 
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        role ENUM('admin','user') DEFAULT 'user'
       )`,
+
       
       `CREATE TABLE IF NOT EXISTS cinemas (
         id INT PRIMARY KEY AUTO_INCREMENT,
@@ -75,8 +78,10 @@ const initDatabase = async () => {
         seat_column INT NOT NULL,
         status ENUM('available', 'booked', 'blocked') DEFAULT 'available',
         blocked_until TIMESTAMP NULL,
+        blocked_by_user INT NULL,
         FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
         FOREIGN KEY (show_id) REFERENCES shows(id) ON DELETE CASCADE,
+        FOREIGN KEY (blocked_by_user) REFERENCES users(id) ON DELETE SET NULL,
         UNIQUE KEY unique_show_seat (show_id, seat_number)
       )`
     ];
@@ -109,25 +114,25 @@ const insertSampleData = async (connection) => {
   try {
     console.log('Inserting sample data...');
 
-    // Insert sample users
+    // Insert sample users if not exists
     await connection.execute(
-      'INSERT INTO users (name, email) VALUES (?, ?), (?, ?)',
+      `INSERT IGNORE INTO users (name, email) VALUES (?, ?), (?, ?)`,
       ['John Doe', 'john@example.com', 'Jane Smith', 'jane@example.com']
     );
 
-    // Insert sample cinemas
+    // Insert sample cinemas if not exists
     await connection.execute(
-      'INSERT INTO cinemas (name, location) VALUES (?, ?), (?, ?), (?, ?)',
+      `INSERT IGNORE INTO cinemas (name, location) VALUES (?, ?), (?, ?), (?, ?)`,
       [
         'PVR Cinemas', 'Forum Mall, Koramangala, Bangalore',
-        'INOX', 'Garuda Mall, Magrath Road, Bangalore', 
+        'INOX', 'Garuda Mall, Magrath Road, Bangalore',
         'Cinepolis', 'Urban Square Mall, Sarjapur Road, Bangalore'
       ]
     );
 
-    // Insert sample movies
+    // Insert sample movies if not exists
     await connection.execute(
-      `INSERT INTO movies (title, description, duration, genre, poster_url) 
+      `INSERT IGNORE INTO movies (title, description, duration, genre, poster_url)
        VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)`,
       [
         'Avengers: Endgame',
@@ -135,13 +140,13 @@ const insertSampleData = async (connection) => {
         181,
         'Action, Adventure, Sci-Fi',
         'https://m.media-amazon.com/images/M/MV5BMTc5MDE2ODcwNV5BMl5BanBnXkFtZTgwMzI2NzQ2NzM@._V1_.jpg',
-        
+
         'Inception',
         'A thief who steals corporate secrets through dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.',
         148,
         'Action, Sci-Fi, Thriller',
         'https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_.jpg',
-        
+
         'The Dark Knight',
         'When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests.',
         152,
@@ -151,51 +156,54 @@ const insertSampleData = async (connection) => {
     );
 
     // Insert sample screens
-    for (let cinemaId = 1; cinemaId <= 3; cinemaId++) {
+    const [cinemas] = await connection.execute('SELECT id FROM cinemas');
+    for (const cinema of cinemas) {
       for (let i = 1; i <= 3; i++) {
         await connection.execute(
-          'INSERT INTO screens (cinema_id, name, total_seats) VALUES (?, ?, ?)',
-          [cinemaId, `Screen ${i}`, 100]
+          `INSERT IGNORE INTO screens (cinema_id, name, total_seats) VALUES (?, ?, ?)`,
+          [cinema.id, `Screen ${i}`, 100]
         );
       }
     }
 
     // Insert sample shows for today and tomorrow
+    const [movies] = await connection.execute('SELECT id FROM movies');
+    const [screens] = await connection.execute('SELECT id FROM screens');
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     for (const date of [today, tomorrow]) {
-      for (let movieId = 1; movieId <= 3; movieId++) {
-        for (let screenId = 1; screenId <= 9; screenId++) {
+      for (const movie of movies) {
+        for (const screen of screens) {
           for (let i = 0; i < 3; i++) {
             const startTime = new Date(date);
             startTime.setHours(10 + i * 4, 0, 0, 0);
             const endTime = new Date(startTime);
             endTime.setMinutes(startTime.getMinutes() + 150);
-            
+
             await connection.execute(
-              'INSERT INTO shows (movie_id, screen_id, start_time, end_time, price) VALUES (?, ?, ?, ?, ?)',
-              [movieId, screenId, startTime, endTime, 250.00]
+              `INSERT IGNORE INTO shows (movie_id, screen_id, start_time, end_time, price) VALUES (?, ?, ?, ?, ?)`,
+              [movie.id, screen.id, startTime, endTime, 250.00]
             );
           }
         }
       }
     }
 
-    // Get all shows to initialize seats
+    // Initialize seats
     const [allShows] = await connection.execute('SELECT id FROM shows');
-    
     for (const show of allShows) {
       await initializeSeatsForShow(connection, show.id);
     }
 
     console.log('✅ Sample data inserted successfully');
-    
+
   } catch (error) {
     console.error('Error inserting sample data:', error);
   }
 };
+
 
 const initializeSeatsForShow = async (connection, showId) => {
   const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];

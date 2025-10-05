@@ -28,7 +28,8 @@ const seatRoutes = require('./routes/seats');
 const bookingRoutes = require('./routes/bookings'); // Add this
 const userRoutes = require('./routes/users'); 
    
-
+const adminRoutes = require('./routes/admin');
+app.use('/api/admin', adminRoutes);
 
 // Use routes
 app.use('/api/cinemas', cinemaRoutes);
