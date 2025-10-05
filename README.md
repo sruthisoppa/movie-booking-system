@@ -8,7 +8,9 @@ A small movie booking application with a Node/Express backend and a Next.js + Re
 This README explains how to set up, run, and develop the project locally (Windows / PowerShell instructions included).
 
 ## Table of contents
+
 - Project structure
+- Features
 - Requirements
 - Environment variables
 - Database setup
@@ -28,23 +30,41 @@ backend/
   server.js
   routes/
     bookings.js
+    admin.js
     shows.js
     seats.js
+    ...
+
   config/
     database.js
+    ...
+
   middleware/
     auth.js
+    ...
 
 frontend/
   package.json
   src/
-    app/           # Next.js App Router pages
+    app/
+        admin/
+        bookings/
+        ...
+        login/
+        signup/
+        page.tsx          # Next.js App Router pages
     lib/           # API client (axios)
-    components/
     ...
 ```
 
+## Features
+
+- Implemented Backend APIs, Cinema & Show Listing, Seat Selection Screen, Booking Confirmation, Booking History
+- Implemented Bonus Features- Real-Time Concurrency with temporary seat blocking,
+- Admin Panel with secure interface to add/edit/delete Movies, Admin view of show's seat layout with user booking details on hover.
+
 ## Requirements
+
 - Node.js (>=18 recommended)
 - npm
 - MySQL (or compatible) running locally or accessible
@@ -56,6 +76,7 @@ frontend/
 - Dev tools: ESLint, Turbopack (Next.js), nodemon for backend development
 
 ## Environment variables
+
 Create a `.env` file in `backend/` with at least the following values:
 
 ```
@@ -70,6 +91,7 @@ JWT_SECRET=your_jwt_secret
 Adjust values to match your environment.
 
 ## Database setup
+
 1. Create a database in MySQL matching `DB_NAME` (default `movie_booking`).
 2. Run the SQL schema or migration you have (not included here). The backend expects tables like `users`, `movies`, `shows`, `seats`, `bookings`, etc.
 
@@ -79,59 +101,78 @@ If you don't have a schema file, create the minimal tables matching the queries 
 
 Below is a brief high-level schema outline (column names inferred from backend queries). Use this as a starting point for creating tables or seeds.
 
-- users
-  - id (PK, int, auto_increment)
-  - name (varchar)
-  - email (varchar, unique)
-  - password_hash (varchar)
-  - created_at / updated_at (timestamps)
+-- Users table with role-based authentication
+users
 
-- movies
-  - id (PK)
-  - title
-  - description
-  - duration (minutes)
-  - genre
-  - poster_url
+- id (PK, int, auto_increment)
+- name (varchar)
+- email (varchar, unique)
+- password (varchar)
+- created_at (timestamp)
+- role (enum: 'admin','user')
 
-- cinemas
-  - id (PK)
-  - name
-  - location
+-- Cinemas table for venue management  
+cinemas
 
-- screens
-  - id (PK)
-  - cinema_id (FK -> cinemas.id)
-  - name
-  - total_seats
+- id (PK)
+- name (varchar)
+- location (varchar)
+- created_at (timestamp)
 
-- shows
-  - id (PK)
-  - movie_id (FK -> movies.id)
-  - screen_id (FK -> screens.id)
-  - start_time (datetime)
-  - end_time (datetime)
-  - price (decimal)
+-- Movies table with film details
+movies
 
-- seats
-  - id (PK)
-  - show_id (FK -> shows.id)
-  - seat_number (e.g., "A1")
-  - seat_row / seat_column (ints)
-  - status (enum: available/booked/blocked)
-  - booking_id (nullable FK -> bookings.id)
-  - blocked_until (datetime nullable) -- optional for timed blocks
+- id (PK)
+- title (varchar)
+- description (text)
+- duration (int)
+- genre (varchar)
+- poster_url (varchar)
+- created_at (timestamp)
 
-- bookings
-  - id (PK)
-  - user_id (FK -> users.id)
-  - show_id (FK -> shows.id)
-  - total_amount (decimal)
-  - status (enum: confirmed/pending/cancelled)
-  - booking_time (datetime)
-  - cancelled_at (datetime nullable)
+-- Screens table within cinemas
+screens
+
+- id (PK)
+- cinema_id (FK -> cinemas.id)
+- name (varchar)
+- total_seats (int)
+
+-- Shows table for movie screenings
+shows
+
+- id (PK)
+- movie_id (FK -> movies.id)
+- screen_id (FK -> screens.id)
+- start_time (datetime)
+- end_time (datetime)
+- price (decimal)
+
+-- Bookings table for user reservations
+bookings
+
+- id (PK)
+- user_id (FK -> users.id)
+- show_id (FK -> shows.id)
+- booking_time (timestamp)
+- total_amount (decimal)
+- status (enum: 'confirmed', 'cancelled')
+
+-- Seats table with real-time blocking
+seats
+
+- id (PK)
+- booking_id (FK -> bookings.id, nullable)
+- show_id (FK -> shows.id)
+- seat_number (varchar)
+- seat_row (int)
+- seat_column (int)
+- status (enum: 'available', 'booked', 'blocked')
+- blocked_until (timestamp, nullable)
+- blocked_by_user (FK -> users.id, nullable)
 
 Notes:
+
 - The backend often uses GROUP_CONCAT(seats.seat_number) to return seats as a comma-separated string; the frontend converts that to an array.
 - The API currently returns a human-readable bookingId (e.g., `BK001`) for display; the canonical DB id is `bookings.id` and should be used for server-side operations (cancel, seat release).
 
@@ -169,6 +210,7 @@ The frontend uses the App Router. API base URL is configured in `frontend/src/li
 ## Useful scripts
 
 - Backend
+
   - `npm run dev` — start backend with nodemon
   - `npm start` — start backend with node
 
@@ -181,10 +223,12 @@ The frontend uses the App Router. API base URL is configured in `frontend/src/li
 ## Troubleshooting
 
 - 404 from seat/show APIs
+
   - Ensure the `showId` passed to frontend API calls is a numeric DB id (backend endpoints expect numeric IDs).
   - If you see requests with IDs like `BK001` (formatted bookingId), map to the numeric DB id on the client or change the backend to accept those formatted IDs.
 
 - Auth issues (401)
+
   - Backend requires Authorization header `Bearer <token>` for protected routes. The frontend attaches token from `localStorage.token`.
   - If you get 401, make sure you are logging in properly and the JWT is present.
 
@@ -192,6 +236,7 @@ The frontend uses the App Router. API base URL is configured in `frontend/src/li
   - The project uses Next 15 App Router with Turbopack; some warnings (react-hooks/exhaustive-deps, next/image suggestions) are non-fatal but should be cleaned up during development.
 
 ## Developer notes
+
 - API client: `frontend/src/lib/api.ts` centralizes axios calls and interceptors.
 - Booking flow:
   - Seat selection happens on the client and seats are temporarily "blocked" using seat updates.
