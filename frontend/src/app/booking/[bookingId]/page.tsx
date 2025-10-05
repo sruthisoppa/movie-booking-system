@@ -138,7 +138,7 @@ export default function BookingConfirmationPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button 
-                onClick={() => router.back()}
+                onClick={() => router.push('/')}
                 className="flex items-center gap-2 px-4 py-2.5 text-gray-800 hover:text-red hover:bg-primary border border-gray-600 hover:border-primary rounded-lg transition-all duration-300 font-semibold group"
               >
                 <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform duration-300" />

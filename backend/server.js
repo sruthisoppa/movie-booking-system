@@ -26,7 +26,8 @@ const movieRoutes = require('./routes/movies');
 const showRoutes = require('./routes/shows');
 const seatRoutes = require('./routes/seats');
 const bookingRoutes = require('./routes/bookings'); // Add this
-const userRoutes = require('./routes/users');    
+const userRoutes = require('./routes/users'); 
+   
 
 
 // Use routes
@@ -36,6 +37,7 @@ app.use('/api/shows', showRoutes);
 app.use('/api/seats', seatRoutes);
 app.use('/api/bookings', bookingRoutes); // Add this
 app.use('/api/users', userRoutes);  
+
 
 // Health check route
 app.get('/api/health', (req, res) => {

@@ -200,6 +200,34 @@ router.get('/movie/:movieId', async (req, res) => {
     });
   }
 });
+router.get('/:showId', async (req, res) => {
+  try {
+    const { showId } = req.params;
+    
+    const [shows] = await promisePool.execute(`
+      SELECT 
+        s.*,
+        m.title as movie_title,
+        m.poster_url,
+        c.name as cinema_name,
+        sc.name as screen_name
+      FROM shows s
+      JOIN movies m ON s.movie_id = m.id
+      JOIN screens sc ON s.screen_id = sc.id
+      JOIN cinemas c ON sc.cinema_id = c.id
+      WHERE s.id = ?
+    `, [showId]);
+    
+    if (shows.length === 0) {
+      return res.status(404).json({ error: 'Show not found' });
+    }
+    
+    res.json({ data: shows[0] });
+  } catch (error) {
+    console.error('Error fetching show:', error);
+    res.status(500).json({ error: 'Failed to fetch show' });
+  }
+});
 
 // Get shows by cinema only
 router.get('/cinema/:cinemaId', async (req, res) => {
