@@ -80,7 +80,7 @@ export default function CinemasManagement() {
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">
+            <h2 className="text-xl font-bold mb-4 text-gray-900">
               {editingCinema ? 'Edit Cinema' : 'Add New Cinema'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -89,7 +89,7 @@ export default function CinemasManagement() {
                 placeholder="Cinema Name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg"
+                className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500"
                 required
               />
               <input
@@ -97,7 +97,7 @@ export default function CinemasManagement() {
                 placeholder="Location"
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg"
+                className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500"
                 required
               />
               <div className="flex justify-end space-x-3">

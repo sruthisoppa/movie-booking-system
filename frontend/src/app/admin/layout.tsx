@@ -124,13 +124,14 @@ const handleLogout = () => {
                 <Link 
                   href="/admin/cinemas" 
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    pathname.includes('/cinemas') 
+                    pathname.includes('/admin/cinemas') 
                       ? 'bg-red-100 text-red-700 border-b-2 border-red-600' 
                       : 'text-gray-700 hover:text-red-600 hover:bg-gray-50'
                   }`}
                 >
                   Cinemas
                 </Link>
+                {/*<Link 
                 <Link 
                   href="/admin/screens" 
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -150,7 +151,7 @@ const handleLogout = () => {
                   }`}
                 >
                   Shows
-                </Link>
+                </Link>*/}
               </nav>
             </div>
 

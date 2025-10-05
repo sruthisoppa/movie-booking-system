@@ -1,9 +1,17 @@
 import axios from 'axios';
+
 const API_BASE_URL = 'http://localhost:5000/api';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
 });
+
+// Add ApiResponse type at the top
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
 
 export interface Cinema {
   id: number;
@@ -57,10 +65,24 @@ export interface Booking {
   booking_time?: string;
 }
 
+// Add this interface for booking with user details
+export interface BookingWithUser extends Booking {
+  user_name?: string;
+  user_email?: string;
+  user_phone?: string;
+}
+
+// Add this interface for seat details with user info
+export interface SeatWithUser extends Seat {
+  user_name?: string;
+  user_email?: string;
+  booking_time?: string;
+}
+
 // API methods
 export const cinemaAPI = {
   getAll: () => api.get<Cinema[]>('/cinemas'),
-  getById: (cinemaId: number) => api.get<Cinema>(`/cinemas/${cinemaId}`), // Add this method
+  getById: (cinemaId: number) => api.get<Cinema>(`/cinemas/${cinemaId}`),
   getMovies: (cinemaId: number) => api.get<Movie[]>(`/cinemas/${cinemaId}/movies`),
 };
 
@@ -69,23 +91,16 @@ export const movieAPI = {
   getById: (movieId: number) => api.get<Movie>(`/movies/${movieId}`),
 };
 
-
-
 export const showAPI = {
   getShows: (cinemaId?: number, movieId?: number) => 
     api.get<Show[]>('/shows', { params: { cinemaId, movieId } }),
   getShow: (showId: number) => api.get<Show>(`/shows/${showId}`),
 };
 
-//export const seatAPI = {
-  //getSeats: (showId: number) => api.get<Seat[]>(`/seats/show/${showId}`),
-//};
-
 export const userAPI = {
   create: (data: { name: string; email: string; password: string }) => api.post('/users', data),
   getDemoUser: () => api.get('/users/demo'),
 };
-
 
 // Request interceptor to add token
 api.interceptors.request.use((config) => {
@@ -102,23 +117,24 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    /* if (error.response?.status === 401) {
       // Only run in client-side
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = '/login';
       }
-    }
+    } */
+    
     return Promise.reject(error);
   }
 );
+
 // In your seatAPI calls, add current user ID
 const getCurrentUserId = () => {
   const user = localStorage.getItem('user');
   return user ? JSON.parse(user).id : null;
 };
-
 
 export const seatAPI = {
   getSeats: (showId: number): Promise<{ data: Seat[] }> => 
@@ -139,8 +155,7 @@ export const seatAPI = {
   releaseSeat: (showId: number, seatNumber: string): Promise<{ data: { success: boolean; message: string } }> => 
     api.patch('/seats/release', { showId, seatNumber }),
 };
-// Add to your lib/api.ts
-// In your lib/api.ts - Update the adminAPI section
+
 export const adminAPI = {
   // Movies
   getAllMovies: () => api.get<Movie[]>('/admin/movies'),
@@ -187,13 +202,6 @@ export const adminAPI = {
     api.get(`/admin/shows/${showId}/seats`)
 };
 
-// Add this interface for seat details
-export interface SeatWithUser extends Seat {
-  user_name?: string;
-  user_email?: string;
-  booking_time?: string;
-}
-
 export const bookingAPI = {
   create: (bookingData: {
     showId: number;
@@ -207,13 +215,16 @@ export const bookingAPI = {
   getBooking: (bookingId: string): Promise<{ data: { booking: Booking } }> => 
     api.get(`/bookings/${bookingId}`),
 
+  // Fixed method with ApiResponse type
+  getBookingsByShow: (showId: number): Promise<ApiResponse<BookingWithUser[]>> => 
+    api.get(`/bookings/show/${showId}`).then(response => response.data),
+
   getUserBookings: (): Promise<{ data: Booking[] }> => 
     api.get('/bookings/my-bookings').then(response => {
       return {
         data: response.data.bookings || response.data || []
       };
     }),
-  // ADD THIS CANCEL METHOD
 
   // Proper cancellation that releases seats
   cancel: async (bookingId: string | number, seatNumbers: string[], showId: number): Promise<{ data: { success: boolean; message: string } }> => {
@@ -234,4 +245,5 @@ export const bookingAPI = {
     }
   }
 };
+
 export default api;

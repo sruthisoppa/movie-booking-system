@@ -2,8 +2,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Eye } from 'lucide-react';
 import { Movie, adminAPI, movieAPI } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+
+// Add inside your component
 
 export default function MoviesManagement() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -11,6 +14,7 @@ export default function MoviesManagement() {
   const [showForm, setShowForm] = useState(false);
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const router = useRouter();
 
   const [formData, setFormData] = useState({
     title: '',
@@ -73,7 +77,9 @@ const loadMovies = async () => {
       alert('Failed to save movie');
     }
   };
-
+  const handleViewShows = (movieId: number) => {
+  router.push(`/admin/movie/${movieId}/cinemas`);
+};
   const handleEdit = (movie: Movie) => {
     setEditingMovie(movie);
     setFormData({
@@ -109,6 +115,7 @@ const loadMovies = async () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Movies Management</h1>
+        <p className="text-gray-600 mt-1">Click the eye icon to view cinemas and shows for each movie</p>
         <button
           onClick={() => setShowForm(true)}
           className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -126,7 +133,7 @@ const loadMovies = async () => {
           placeholder="Search movies..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500"
         />
       </div>
 
@@ -134,7 +141,7 @@ const loadMovies = async () => {
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">
+            <h2 className="text-xl font-bold mb-4 text-gray-900">
               {editingMovie ? 'Edit Movie' : 'Add New Movie'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -143,14 +150,14 @@ const loadMovies = async () => {
                 placeholder="Title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg"
+                className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500"
                 required
               />
               <textarea
                 placeholder="Description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg"
+                className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500"
                 rows={3}
                 required
               />
@@ -159,7 +166,7 @@ const loadMovies = async () => {
                 placeholder="Duration (minutes)"
                 value={formData.duration}
                 onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg"
+                className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500"
                 required
               />
               <input
@@ -167,7 +174,7 @@ const loadMovies = async () => {
                 placeholder="Genre"
                 value={formData.genre}
                 onChange={(e) => setFormData({ ...formData, genre: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg"
+                className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500"
                 required
               />
               <input
@@ -175,7 +182,7 @@ const loadMovies = async () => {
                 placeholder="Poster URL"
                 value={formData.poster_url}
                 onChange={(e) => setFormData({ ...formData, poster_url: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg"
+                className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500"
                 required
               />
               <div className="flex justify-end space-x-3">
@@ -209,18 +216,25 @@ const loadMovies = async () => {
             <img
               src={movie.poster_url || '/placeholder-movie.jpg'}
               alt={movie.title}
-              className="w-full h-48 object-cover"
+              className="w-full h-48 object-cover "
               onError={(e) => {
                 (e.target as HTMLImageElement).src = '/placeholder-movie.jpg';
               }}
             />
             <div className="p-4">
-              <h3 className="font-semibold text-lg mb-2">{movie.title}</h3>
+              <h3 className="font-semibold text-lg mb-2 text-gray-600">{movie.title}</h3>
               <p className="text-gray-600 text-sm mb-2">{movie.genre}</p>
               <p className="text-gray-500 text-sm mb-4 line-clamp-2">{movie.description}</p>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-500">{movie.duration} min</span>
                 <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleViewShows(movie.id)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded"
+                        title="View Cinemas & Shows"
+                    >
+                        <Eye className="w-4 h-4" />
+                    </button>
                   <button
                     onClick={() => handleEdit(movie)}
                     className="p-2 text-blue-600 hover:bg-blue-50 rounded"
