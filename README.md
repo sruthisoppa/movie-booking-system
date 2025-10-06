@@ -93,9 +93,7 @@ Adjust values to match your environment.
 ## Database setup
 
 1. Create a database in MySQL matching `DB_NAME` (default `movie_booking`).
-2. Run the SQL schema or migration you have (not included here). The backend expects tables like `users`, `movies`, `shows`, `seats`, `bookings`, etc.
-
-If you don't have a schema file, create the minimal tables matching the queries in `backend/routes/*.js`.
+2. Then after updating the env file and running, the backend automatically creates sample data.
 
 ### Brief database schema (overview)
 
